@@ -1,0 +1,223 @@
+TENUVAULT DESKTOP END USER LICENSE AGREEMENT
+
+Version 1.0, 1 October 2026
+
+Ugurlabs UG (haftungsbeschraenkt), Duesseldorf, Germany ("Ugurlabs", "we", "us")
+
+PLEASE READ THIS AGREEMENT BEFORE YOU INSTALL OR USE TENUVAULT DESKTOP. BY
+INSTALLING OR USING AN OFFICIAL BUILD, YOU AGREE TO THIS AGREEMENT. IF YOU DO NOT
+AGREE, DO NOT INSTALL OR USE IT.
+
+IN SHORT: YOU USE TENUVAULT AT YOUR OWN RISK. TENUVAULT CHANGES THE MICROSOFT
+TENANTS YOU POINT IT AT. YOU ARE RESPONSIBLE FOR REVIEWING AND TESTING EVERY
+CHANGE. WE ARE NOT LIABLE FOR ANY DAMAGES CAUSED BY TENUVAULT, EXCEPT WHERE THE
+LAW DOES NOT ALLOW LIABILITY TO BE EXCLUDED, AS SET OUT IN SECTION 9.
+
+
+1. SCOPE
+
+1.1 This agreement applies to the TenuVault Desktop installers, application
+    packages and updates that we build, sign and distribute, through the
+    GitHub releases of the TenuVault repository, tenuvault.com or the
+    built in updater (each an "Official Build").
+
+1.2 The source code of TenuVault Desktop is licensed separately under the
+    Business Source License 1.1 in the LICENSE file of the source repository.
+    Copies you build yourself from the source code are not Official Builds and
+    are governed by that license only. This agreement does not limit any
+    right the Business Source License grants you. To the extent that license
+    grants you a right, you may exercise it for the code contained in an
+    Official Build instead of relying on this agreement. Sections 2 and 3 of
+    this agreement apply to the extent you rely on this agreement.
+
+1.3 The TenuVault Terms of Use at https://tenuvault.com/terms also apply to
+    your use of TenuVault. If they conflict with this agreement on the use
+    of an Official Build, this agreement prevails.
+
+1.4 Official Builds are intended for professional use by businesses and
+    their administrators. By accepting this agreement on behalf of an
+    organization, you confirm that you are authorized to bind it.
+
+
+2. LICENSE GRANT
+
+2.1 Subject to this agreement, we grant you a non-exclusive,
+    non-transferable, non-sublicensable right to install and use Official
+    Builds within the limits of your plan:
+
+    a) Community: free of charge, for one Microsoft Entra tenant owned by
+       your organization, without a license key.
+    b) Pro: for the tenants owned by your organization and the installations
+       covered by your license key, while your subscription or trial is
+       active.
+    c) MSP: for the tenants and installations covered by your license key,
+       while your subscription or trial is active, including the tenants of
+       your customers as part of services you provide to them.
+
+    "Your organization" means you, or the legal entity you act for, together
+    with the entities it controls, is controlled by, or is under common
+    control with. Managing a tenant owned by a customer or other third party
+    requires an MSP plan or another commercial license from us.
+
+2.2 The features and limits of each plan are described on
+    https://tenuvault.com/pricing and in the TenuVault documentation.
+
+2.3 When a subscription ends, a tenant owned by your organization falls back
+    to Community as described in the Terms of Use. Tenants of customers or
+    other third parties are no longer covered.
+
+
+3. RESTRICTIONS
+
+You may not, and may not allow anyone else to:
+
+a) bypass, disable, patch or otherwise circumvent the license checks, license
+   keys, tenant limits or installation limits of an Official Build;
+b) share license keys outside your organization, or sell, rent or transfer
+   them;
+c) modify an Official Build or its installers, or distribute a modified
+   Official Build;
+d) redistribute, mirror or host Official Builds or their installers for
+   third parties, except for deploying them inside your own organization,
+   for example through Microsoft Intune or Configuration Manager;
+e) remove or alter copyright, license or trademark notices; or
+f) use an Official Build in violation of applicable law, including export
+   control and sanctions law.
+
+
+4. OWNERSHIP
+
+Official Builds are licensed, not sold. Ugurlabs and its licensors keep all
+rights, title and interest in TenuVault, including all copyrights and
+trademarks. All rights not expressly granted are reserved.
+
+
+5. THIRD PARTY COMPONENTS AND CONTENT
+
+5.1 Official Builds include third party open source components. Their
+    licenses are included with each Official Build and apply to those
+    components.
+
+5.2 Some features load content published by third parties, such as the
+    OpenIntuneBaseline and framework control mappings. That content is
+    provided by its authors under its own license. We do not author or
+    control it and provide it without warranty.
+
+
+6. YOUR RESPONSIBILITIES
+
+6.1 TenuVault acts with the delegated permissions of the administrator who
+    signs in. Restores, drift reverts, promotions, baseline deployments and
+    other changes modify your tenant exactly as you choose them.
+
+6.2 You are solely responsible for:
+
+    a) reviewing every change before you confirm it, and checking the result
+       in your tenant afterwards;
+    b) testing recommended settings and other changes in a non-production
+       tenant or with a pilot group before you apply them to production;
+    c) the app registration, permissions and roles TenuVault uses;
+    d) making regular backups of your tenant configuration, and keeping
+       your backup recovery key safe. Without it, backups cannot be
+       read on another computer or after a reinstall, and we cannot recover
+       it; and
+    e) storing backups and exports securely, as they can contain sensitive
+       configuration values.
+
+6.3 Framework recommendations, including the OpenIntuneBaseline and the CIS
+    Benchmarks, are generic starting points. They are not tailored to your
+    environment and can block sign-ins, apps or devices.
+
+
+7. LICENSE CHECKS, UPDATES AND DATA
+
+Official Builds check licenses with our licensing service and download
+updates as described in the Terms of Use and the Privacy Policy at
+https://tenuvault.com/privacy. No tenant configuration data and no Microsoft
+access token is sent to us. License checks send the license key or a
+Microsoft ID token, the tenant ID and an installation ID, as described in the
+Privacy Policy.
+
+
+8. NO WARRANTY
+
+8.1 For Community and any other use free of charge, Official Builds are
+    provided "as is" and "as available", without warranty of any kind, to
+    the extent permitted by law. In particular, we do not warrant that
+    TenuVault, its backups, restores, comparisons, assessments or reports
+    are error free, complete, uninterrupted or suitable for any particular
+    purpose.
+
+8.2 For paid plans, the statutory rights for defects apply. Claims for
+    damages are governed exclusively by Section 9.
+
+8.3 We give no guarantee (Garantie) of any quality or result unless we have
+    expressly given it in writing.
+
+
+9. LIMITATION OF LIABILITY
+
+9.1 We are not liable for any damages caused by TenuVault or by its use,
+    including damage to or loss of tenant configuration, devices, data,
+    access, availability, profits or revenue, except as set out in
+    Sections 9.2 to 9.5.
+
+9.2 Free use. For Community and any other use free of charge, we are liable
+    only for intent (Vorsatz) and gross negligence (grobe Fahrlaessigkeit),
+    and for defects only if we fraudulently concealed them.
+
+9.3 Paid plans. For paid plans, we are liable without limitation only for
+    intent and gross negligence. For slight negligence, we are liable only
+    for breaches of an essential contractual obligation, meaning an
+    obligation whose fulfillment makes the proper performance of this
+    agreement possible in the first place and on whose fulfillment you may
+    regularly rely. In that case, our liability is limited to the damage
+    that was foreseeable and typical for this type of contract at the time
+    it was concluded. Any other liability for slight negligence is
+    excluded.
+
+9.4 Loss of data. Where we are liable for loss of data only because of a
+    slightly negligent breach of an essential contractual obligation under
+    Section 9.3, our liability is limited to the effort that would have been
+    needed to restore the data had you made regular backups and tested
+    changes as required by Section 6.
+
+9.5 Mandatory liability. Nothing in this agreement limits liability for
+    injury to life, body or health, under the German Product Liability Act
+    (Produkthaftungsgesetz), under a guarantee we have expressly given, for
+    fraudulently concealed defects, or any other liability that cannot be
+    limited or excluded by law.
+
+9.6 These limitations also apply to the personal liability of our managing
+    directors, employees, agents and subcontractors.
+
+
+10. TERM AND TERMINATION
+
+10.1 This agreement applies for as long as you use an Official Build.
+
+10.2 Your rights under this agreement end automatically if you breach
+     Section 3. Your paid plan rights end when your subscription ends,
+     subject to Section 2.3.
+
+10.3 Sections 4, 8, 9 and 11 survive the end of this agreement.
+
+
+11. GENERAL
+
+11.1 This agreement is governed by the laws of the Federal Republic of
+     Germany, excluding the UN Convention on Contracts for the International
+     Sale of Goods. If you are a merchant, a legal entity under public law or
+     a special fund under public law, the exclusive place of jurisdiction is
+     Duesseldorf, Germany. Mandatory consumer protection rules of your
+     country of residence remain unaffected.
+
+11.2 We may update this agreement for future versions of TenuVault. The
+     version included with an Official Build, and published in the source
+     repository when that version is released, applies to that version.
+
+11.3 If any provision of this agreement is invalid, the remaining provisions
+     stay in effect. The resulting gap is governed by the applicable
+     statutory provisions.
+
+11.4 Questions about this agreement: support@ugurlabs.com.

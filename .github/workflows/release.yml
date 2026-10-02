@@ -1,0 +1,341 @@
+name: Release
+
+# Nightly: every push to main whose CI passed becomes a signed prerelease such as
+# v0.1.0-nightly.20260926.42, previewing the next stable version.
+# Stable: push a version tag (v0.1.0), or run this workflow with channel "stable" to promote
+# the newest nightly's commit. Nightly users update from nightly.yml, stable users from latest.yml.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel
+        type: choice
+        options: [nightly, stable]
+        default: nightly
+      version:
+        description: Stable version, such as 0.1.0. Defaults to the version the newest nightly previews.
+        required: false
+
+permissions:
+  contents: read
+
+# A newer push replaces a nightly still being built; stable releases never cancel each other.
+concurrency:
+  group: release-${{ (github.event_name == 'workflow_run' || inputs.channel == 'nightly') && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'workflow_run' || inputs.channel == 'nightly' }}
+
+jobs:
+  meta:
+    name: Resolve version
+    # Nightlies only follow a CI run that passed on a push to main.
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.resolve.outputs.channel }}
+      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      sha: ${{ steps.resolve.outputs.sha }}
+      prerelease: ${{ steps.resolve.outputs.prerelease }}
+      skip: ${{ steps.resolve.outputs.skip }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve channel, version and commit
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          DISPATCH_CHANNEL: ${{ inputs.channel }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # Manual releases run the workflow file from main, never from another branch.
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run the Release workflow from main, not $GITHUB_REF."
+            exit 1
+          fi
+          if [ "$EVENT" = "push" ]; then
+            channel=stable
+            meta=$(node .github/scripts/release-version.mjs stable "$GITHUB_REF_NAME")
+            sha="$GITHUB_SHA"
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ "$DISPATCH_CHANNEL" = "stable" ]; then
+            channel=stable
+            # Promote the newest nightly: stable only ships a build nightly users already ran.
+            latest=$(gh release list --limit 100 --json tagName,isPrerelease --jq '[.[] | select(.isPrerelease and (.tagName | test("-nightly\\.")))][0].tagName // ""')
+            if [ -z "$latest" ]; then echo "::error::There is no nightly to promote yet."; exit 1; fi
+            previewed="${latest#v}"
+            version="${DISPATCH_VERSION:-${previewed%%-nightly.*}}"
+            meta=$(node .github/scripts/release-version.mjs stable "$version")
+            sha=$(git rev-list -n 1 "$latest")
+          else
+            channel=nightly
+            sha="${RUN_SHA:-$GITHUB_SHA}"
+            mapfile -t tags < <(git tag --list 'v*')
+            meta=$(node .github/scripts/release-version.mjs nightly "$(node -p 'require("./package.json").version')" "$(date -u +%Y%m%d%H%M%S)" "${tags[@]}")
+            # Automatic nightlies only build when something that ships in the app changed since the
+            # previous release; docs, the docs site, scripts and CI alone never do. Run this workflow
+            # by hand for a nightly anyway. Diffing against the last release (not the parent) keeps
+            # code from a cancelled nightly.
+            if [ "$EVENT" = "workflow_run" ] && base=$(git describe --tags --abbrev=0 --match 'v*' "$sha" 2>/dev/null); then
+              app_paths='^(src|resources|build)/|^(package\.json|package-lock\.json|electron-builder\.config\.cjs|electron\.vite\.config\.ts|tsconfig\.json)$'
+              changed=$(git diff --name-only "$base" "$sha")
+              if ! grep -qE "$app_paths" <<< "$changed"; then
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                echo "::notice::Nothing that ships in the app changed since $base, so no nightly is built."
+                exit 0
+              fi
+            fi
+          fi
+          # Only reviewed history reachable from main can be released.
+          git fetch origin main
+          sha=$(git rev-parse "$sha^{commit}")
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "::error::Release commit must be reachable from origin/main."
+            exit 1
+          fi
+          tag=$(echo "$meta" | jq -r .tag)
+          if gh release view "$tag" >/dev/null 2>&1; then echo "::error::Release $tag already exists."; exit 1; fi
+          {
+            echo "channel=$channel"
+            echo "version=$(echo "$meta" | jq -r .version)"
+            echo "tag=$tag"
+            echo "prerelease=$(echo "$meta" | jq -r .prerelease)"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::$channel release $tag from $sha"
+
+  checks:
+    name: Typecheck and test
+    needs: meta
+    # Nightlies follow a passing CI run already; tag and manual releases check here.
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.meta.outputs.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  package:
+    name: Package (${{ matrix.name }})
+    needs: [meta, checks]
+    if: always() && needs.meta.result == 'success' && needs.meta.outputs.skip != 'true' && (needs.checks.result == 'success' || needs.checks.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            target: --win
+            app: dist/win-unpacked/TenuVault.exe
+          - name: macOS
+            os: macos-latest
+            target: --mac
+            app: dist/mac-arm64/TenuVault.app/Contents/MacOS/TenuVault
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.meta.outputs.sha }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set the release version
+        shell: bash
+        run: npm version "${{ needs.meta.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      # Released builds sign in to real licensed tenants.
+      - name: Licensing configuration
+        shell: bash
+        env:
+          RELEASE_PUBLIC_KEY: ${{ secrets.TENUVAULT_LICENSE_PUBLIC_KEY }}
+          RELEASE_PORTAL_URL: ${{ vars.TENUVAULT_LICENSE_PORTAL_URL }}
+        run: |
+          if [ -z "$RELEASE_PUBLIC_KEY" ] || [ -z "$RELEASE_PORTAL_URL" ]; then
+            echo "::error::Releases need the TENUVAULT_LICENSE_PUBLIC_KEY secret and TENUVAULT_LICENSE_PORTAL_URL variable"
+            exit 1
+          fi
+          {
+            echo "TENUVAULT_LICENSE_API_BASE=https://tenuvault.com"
+            echo "TENUVAULT_LICENSE_BUY_URL=https://tenuvault.com/desktop#pricing"
+            echo "TENUVAULT_LICENSE_PORTAL_URL=$RELEASE_PORTAL_URL"
+            delimiter="EOF_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+            echo "TENUVAULT_LICENSE_PUBLIC_KEY<<$delimiter"
+            printf '%s\n' "$RELEASE_PUBLIC_KEY"
+            echo "$delimiter"
+          } >> "$GITHUB_ENV"
+
+      - name: Build signed installers
+        shell: bash
+        env:
+          TENUVAULT_RELEASE_CHANNEL: ${{ needs.meta.outputs.channel }}
+          # Windows: Azure Trusted Signing.
+          AZURE_TENANT_ID: ${{ secrets.AZURE_SIGNING_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_SIGNING_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SIGNING_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_PUBLISHER_NAME }}
+          # macOS: Developer ID signing and notarization.
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          # Each runner only gets its own platform's signing credentials, and every release is signed.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER
+            required="AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TRUSTED_SIGNING_ENDPOINT AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME AZURE_TRUSTED_SIGNING_PUBLISHER_NAME"
+          else
+            unset AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TRUSTED_SIGNING_ENDPOINT \
+              AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME AZURE_TRUSTED_SIGNING_PUBLISHER_NAME
+            required="CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER"
+          fi
+          for name in $required; do
+            if [ -z "${!name:-}" ]; then echo "::error::Releases need the $name signing secret (see RELEASING.md)"; exit 1; fi
+          done
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            printf '%s' "$APPLE_API_KEY" > "$RUNNER_TEMP/apple-api-key.p8"
+            export APPLE_API_KEY="$RUNNER_TEMP/apple-api-key.p8"
+            # electron-builder's own temporary keychain cannot be unlocked on hosted runners, so the
+            # certificate goes into a keychain this job creates, and signing selects it by name.
+            keychain="$RUNNER_TEMP/signing.keychain-db"
+            keychain_password="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
+            printf '%s' "$CSC_LINK" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+            security create-keychain -p "$keychain_password" "$keychain"
+            security set-keychain-settings -lut 21600 "$keychain"
+            security unlock-keychain -p "$keychain_password" "$keychain"
+            security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
+            # macOS ships bash 3.2 (no mapfile): the search list is set to this keychain plus login.
+            security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+            rm -f "$RUNNER_TEMP/signing.p12"
+            identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"Developer ID Application: \([^"]*\)".*/\1/p' | head -1)"
+            if [ -z "$identity" ]; then echo "::error::No Developer ID Application identity in MAC_CSC_LINK"; exit 1; fi
+            export CSC_NAME="$identity"
+            unset CSC_LINK CSC_KEY_PASSWORD
+          fi
+          npx electron-vite build
+          npx electron-builder --config electron-builder.config.cjs ${{ matrix.target }} --publish never
+
+      - name: Remove signing key files
+        if: always()
+        shell: bash
+        # The notarization key, certificate and signing keychain must not outlive signing, even when the build fails.
+        run: |
+          rm -f "$RUNNER_TEMP/apple-api-key.p8" "$RUNNER_TEMP/signing.p12"
+          if [ "$RUNNER_OS" = "macOS" ]; then security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true; fi
+
+      - name: Smoke test the packaged app
+        timeout-minutes: 5
+        shell: bash
+        env:
+          TENUVAULT_SMOKE_APP: ${{ github.workspace }}/${{ matrix.app }}
+        run: npm run smoke -- out/smoke
+
+      - name: Upload installers
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ matrix.name }}
+          path: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest*.yml
+            dist/nightly*.yml
+          if-no-files-found: error
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-smoke-screenshots-${{ matrix.name }}
+          path: out/smoke
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish ${{ needs.meta.outputs.channel }} release
+    needs: [meta, package]
+    # Nightlies skip the checks job (CI ran it), and a skipped ancestor would skip this job by default.
+    if: always() && needs.meta.result == 'success' && needs.package.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Full history, so the notes can list every commit since the previous release.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-Windows
+          path: artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-macOS
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ needs.meta.outputs.channel }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          SHA: ${{ needs.meta.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # The notes link to these files directly, so every one of them must be there.
+          for name in win.exe win-x64.exe win-arm64.exe win-x64.msi mac-arm64.dmg mac-x64.dmg; do
+            if [ ! -f "artifacts/TenuVault-$VERSION-$name" ]; then echo "::error::Missing installer TenuVault-$VERSION-$name"; exit 1; fi
+          done
+          .github/scripts/release-notes.sh "$TAG" "$VERSION" "$SHA" "$CHANNEL" > notes.md
+          # Every release says what changed.
+          if ! grep -q '^## Changes$' notes.md; then echo "::error::The release notes list no changes"; cat notes.md; exit 1; fi
+          if [ "$CHANNEL" = "nightly" ]; then
+            # The build time from the version, 0.1.0-nightly.20260930073622 -> Nightly 2026-09-30 07:36 UTC.
+            stamp="${VERSION##*.}"
+            title="Nightly ${stamp:0:4}-${stamp:4:2}-${stamp:6:2} ${stamp:8:2}:${stamp:10:2} UTC"
+            gh release create "$TAG" artifacts/* --target "$SHA" --title "$title" --notes-file notes.md --prerelease --latest=false
+          else
+            gh release create "$TAG" artifacts/* --target "$SHA" --title "$VERSION" --notes-file notes.md --latest
+          fi
+
+      # Keep the release page readable: the newest 20 nightlies stay, older ones and their tags go.
+      - name: Remove old nightlies
+        if: needs.meta.outputs.channel == 'nightly'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 200 --json tagName,isPrerelease --jq '[.[] | select(.isPrerelease and (.tagName | test("-nightly\\.")))] | .[20:] | .[].tagName' |
+            while read -r tag; do gh release delete "$tag" --cleanup-tag --yes; done

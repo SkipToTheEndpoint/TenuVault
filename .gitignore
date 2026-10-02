@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+*.lic
+*.pem
+.env*
+
+# Docs site (docs-site/) build output
+.astro/
+.vercel

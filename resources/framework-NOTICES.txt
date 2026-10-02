@@ -1,0 +1,117 @@
+TenuVault independent framework mappings
+
+Adapted from IntuneDocumentation, Ugur Koc and contributors.
+Source commit: bb689bd025cbfb6f85ad97d230df907f7162f92c
+Source: https://github.com/ugurkocde/IntuneDocumentation
+Adapted on 2026-09-30 for desktop read-only collection, original restricted-framework descriptions, local history and PDF comparisons.
+Detector update on 2026-10-01 from commit 38998301541c06a6a4a2f6e099277a6c39eb84f6: Graph template booleans left at "Not configured" no longer count as check results or counter-evidence. Framework mappings are unchanged.
+
+Framework names and control identifiers identify third-party publications. They are not product branding, affiliation, endorsement or certification claims. The Intune mapping and expected values are TenuVault's independent interpretation. No publisher logos are included. CIS content is excluded pending the signed commercial-use agreement.
+
+NIST: CSF 2.0 (2024), SP 800-53 Revision 5 (2020 baseline edition), SP 800-171 Revision 2 (2020) and Revision 3 (2024). Derived from NIST-authored technical publications; selected technical mappings and summaries modified for Intune comparison. Not an assertion of coverage of every subsequent release or errata. Third-party material excluded. NIST employee works are not copyright protected in the US under 17 USC 105. NIST grants royalty-free worldwide reuse for the relevant employee-authored works, subject to attribution. Provided AS IS, without warranty or endorsement. Terms: https://www.nist.gov/open/license
+
+ASD: Essential Eight Maturity Model, November 2023. Australian Signals Directorate. © Commonwealth of Australia 2026. Selected requirement descriptions and mappings adapted for Intune policy evidence. Licensed CC BY 4.0, https://creativecommons.org/licenses/by/4.0/ . Changes: detector mapping, selected scope, desktop reports. No endorsement. Source: https://www.cyber.gov.au/resources-business-and-government/essential-cyber-security/essential-eight/essential-eight-maturity-model . Terms: https://www.cyber.gov.au/about-us/copyright
+
+NCSC: Cyber Essentials Requirements for IT infrastructure v3.3, April 2026. Crown copyright. Adapted selected technical descriptions and mappings. Open Government Licence v3.0: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/ . No endorsement or certification. Source: https://www.ncsc.gov.uk/cyberessentials/overview . Terms: https://www.ncsc.gov.uk/section/about-this-website/terms-and-conditions
+
+NCSC Device Security Guidance configuration packs: Crown Copyright, licensed under the Apache License 2.0. Source: https://github.com/ukncsc/Device-Security-Guidance-Configuration-Packs at commit 681e07584d3f7a84549ff26bda83e4f1480703f6. The Windows Settings Catalog packs are downloaded at that commit when an administrator loads them and are modified for comparison (decoded from UTF-16, export metadata, IDs, assignments and scope tags removed). No endorsement by NCSC. The full license text is in licenses/ncsc-device-security-guidance-LICENSE.txt.
+
+ISO/IEC 27001:2022, SOC 2 Trust Services Criteria, BSI IT-Grundschutz Kompendium Edition 2023 and UK MOD Def Stan 05-138 Issue 4: factual framework references and identifiers only, with independently authored detector descriptions. Publisher texts, PDFs, logos and official badges are not bundled. Copyright and trademark rights remain with the respective owners. Referential names do not establish publisher authorization. Source references and mapping verification dates accompany each comparison.
+
+IntuneDocumentation license follows.
+
+Elastic License 2.0
+
+URL: https://www.elastic.co/licensing/elastic-license
+
+The licensor is: Ugur Koc
+
+## Acceptance
+
+By using the software, you agree to all of the terms and conditions below.
+
+## Copyright License
+
+The licensor grants you a non-exclusive, royalty-free, worldwide,
+non-sublicensable, non-transferable license to use, copy, distribute, make
+available, and prepare derivative works of the software, in each case subject to
+the limitations and conditions below.
+
+## Limitations
+
+You may not provide the software to third parties as a hosted or managed
+service, where the service provides users with access to any substantial set of
+the features or functionality of the software.
+
+You may not move, change, disable, or circumvent the license key functionality
+in the software, and you may not remove or obscure any functionality in the
+software that is protected by the license key.
+
+You may not alter, remove, or obscure any licensing, copyright, or other notices
+of the licensor in the software. Any use of the licensor's trademarks is subject
+to applicable law.
+
+## Patents
+
+The licensor grants you a license, under any patent claims the licensor can
+license, or becomes able to license, to make, have made, use, sell, offer for
+sale, import and have imported the software, in each case subject to the
+limitations and conditions in this license. This license does not cover any
+patent claims that you cause to be infringed by modifications or additions to
+the software. If you or your company make any written claim that the software
+infringes or contributes to infringement of any patent, your patent license for
+the software granted under these terms ends immediately. If your company makes
+such a claim, your patent license ends immediately for work on behalf of your
+company.
+
+## Notices
+
+You must ensure that anyone who gets a copy of any part of the software from you
+also gets a copy of these terms.
+
+If you modify the software, you must include in any modified copies of the
+software prominent notices stating that you have modified the software.
+
+## No Other Rights
+
+These terms do not imply any licenses other than those expressly granted in
+these terms.
+
+## Termination
+
+If you use the software in violation of these terms, such use is not licensed,
+and your licenses will automatically terminate. If the licensor provides you
+with a notice of your violation, and you cease all violation of this license no
+later than 30 days after you receive that notice, your licenses will be
+reinstated retroactively. However, if you violate these terms after such
+reinstatement, any additional violation of these terms will cause your licenses
+to terminate automatically and permanently.
+
+## No Liability
+
+As far as the law allows, the software comes as is, without any warranty or
+condition, and the licensor will not be liable to you for any damages arising
+out of these terms or the use or nature of the software, under any kind of
+legal claim.
+
+## Definitions
+
+The **licensor** is the entity offering these terms, and the **software** is the
+software the licensor makes available under these terms, including any portion
+of it.
+
+**you** refers to the individual or entity agreeing to these terms.
+
+**your company** is any legal entity, sole proprietorship, or other kind of
+organization that you work for, plus all organizations that have control over,
+are under the control of, or are under common control with that
+organization. **control** means ownership of substantially all the assets of an
+entity, or the power to direct its management and policies by vote, contract, or
+otherwise. Control can be direct or indirect.
+
+**your licenses** are all the licenses granted to you for the software under
+these terms.
+
+**use** means anything you do with the software requiring one of your licenses.
+
+**trademark** means trademarks, service marks, and similar rights.

@@ -1,0 +1,177 @@
+@import "../portal/styles/globals.css";
+
+/* Generate utilities for the portal pages as well as the desktop shell. */
+@source "../portal";
+@source "./";
+
+/*
+ * TenuVault palette. Blue and cyan utilities render coral, purple renders charcoal and gray renders
+ * warm neutrals, so every page follows the theme without per-component color classes.
+ * Coral 500 (#E4674B) is for fills, charts and large accents; coral 600 (#C94B30) and darker carry
+ * text and white-on-coral buttons, which keeps them at 4.5:1 contrast or better.
+ */
+@theme {
+  --color-coral-50: #fdf4f1;
+  --color-coral-100: #fbe6df;
+  --color-coral-200: #f7cbbe;
+  --color-coral-300: #f1a792;
+  --color-coral-400: #ea8467;
+  --color-coral-500: #e4674b;
+  --color-coral-600: #c94b30;
+  --color-coral-700: #ad3e26;
+  --color-coral-800: #8c3320;
+  --color-coral-900: #6e2a1b;
+  --color-coral-950: #3d150d;
+
+  --color-blue-50: var(--color-coral-50);
+  --color-blue-100: var(--color-coral-100);
+  --color-blue-200: var(--color-coral-200);
+  --color-blue-300: var(--color-coral-300);
+  --color-blue-400: var(--color-coral-400);
+  --color-blue-500: var(--color-coral-500);
+  --color-blue-600: var(--color-coral-600);
+  --color-blue-700: var(--color-coral-700);
+  --color-blue-800: var(--color-coral-800);
+  --color-blue-900: var(--color-coral-900);
+  --color-blue-950: var(--color-coral-950);
+
+  --color-cyan-50: var(--color-coral-50);
+  --color-cyan-100: var(--color-coral-100);
+  --color-cyan-200: var(--color-coral-200);
+  --color-cyan-300: var(--color-coral-200);
+  --color-cyan-400: var(--color-coral-300);
+  --color-cyan-500: var(--color-coral-400);
+  --color-cyan-600: var(--color-coral-500);
+  --color-cyan-700: var(--color-coral-600);
+
+  --color-gray-50: #f4f3f1;
+  --color-gray-100: #eeece9;
+  --color-gray-200: #e4e1dd;
+  --color-gray-300: #d2cec9;
+  --color-gray-400: #a39e98;
+  --color-gray-500: #76716b;
+  --color-gray-600: #5c5853;
+  --color-gray-700: #45423e;
+  --color-gray-800: #2b2927;
+  --color-gray-900: #161514;
+  --color-gray-950: #0c0b0a;
+
+  --color-purple-50: #f4f3f1;
+  --color-purple-100: #eeece9;
+  --color-purple-200: #e4e1dd;
+  --color-purple-400: #76716b;
+  --color-purple-500: #45423e;
+  --color-purple-600: #161514;
+  --color-purple-700: #2b2927;
+
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+}
+
+:root {
+  --font-geist-sans: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue";
+  --radius: 1rem;
+  --background: #f4f3f1;
+  --foreground: #161514;
+  --card: #ffffff;
+  --card-foreground: #161514;
+  --popover: #ffffff;
+  --popover-foreground: #161514;
+  --primary: #161514;
+  --primary-foreground: #ffffff;
+  --secondary: #eeece9;
+  --secondary-foreground: #161514;
+  --muted: #eeece9;
+  --muted-foreground: #76716b;
+  --accent: #eeece9;
+  --accent-foreground: #161514;
+  --border: #e4e1dd;
+  --input: #e4e1dd;
+  --ring: #c94b30;
+  --chart-1: #e4674b;
+  --chart-2: #161514;
+  --chart-3: #f1a792;
+  --chart-4: #a39e98;
+  --chart-5: #ad3e26;
+}
+
+:root { color-scheme: light; }
+:root.dark { color-scheme: dark; }
+
+.dark {
+  --background: #121110;
+  --foreground: #f4f3f1;
+  --card: #1c1b19;
+  --card-foreground: #f4f3f1;
+  --popover: #1c1b19;
+  --popover-foreground: #f4f3f1;
+  --primary: #f4f3f1;
+  --primary-foreground: #161514;
+  --secondary: #2a2826;
+  --secondary-foreground: #f4f3f1;
+  --muted: #2a2826;
+  --muted-foreground: #a8a39c;
+  --accent: #2a2826;
+  --accent-foreground: #f4f3f1;
+  --border: #3a3734;
+  --input: #3a3734;
+  --ring: #f1a792;
+}
+
+/* Dark mode: warm surfaces, and the coral utilities switch to lighter tints that stay readable. */
+.dark .bg-white { background-color: #1c1b19; }
+.dark [class~="bg-white/95"] { background-color: rgb(28 27 25 / 0.95); }
+.dark .bg-gray-50, .dark .bg-gray-100 { background-color: #121110; }
+.dark .bg-gray-200 { background-color: #3a3734; }
+.dark .text-gray-950, .dark .text-gray-900, .dark .text-gray-800 { color: #f4f3f1; }
+.dark .text-gray-700, .dark .text-gray-600 { color: #d2cec9; }
+.dark .text-gray-500, .dark .text-gray-400 { color: #a8a39c; }
+.dark .border-gray-100, .dark .border-gray-200, .dark .border-gray-300 { border-color: #3a3734; }
+.dark input, .dark select, .dark textarea { background-color: #1c1b19; color: #f4f3f1; }
+.dark .hover\:bg-gray-100:hover, .dark .hover\:bg-gray-50:hover, .dark [class~="hover:bg-blue-50/50"]:hover { background-color: #2a2826; }
+.dark .border-gray-800 { border-color: #d2cec9; }
+.dark .bg-blue-50, .dark .bg-blue-100, .dark [class~="bg-blue-50/60"], .dark [class~="bg-blue-50/50"] { background-color: #3a2019; }
+.dark .bg-green-50, .dark .bg-green-100 { background-color: #133a2d; }
+.dark .bg-amber-50, .dark .bg-amber-100, .dark .bg-yellow-50 { background-color: #423318; }
+.dark .bg-red-50, .dark .bg-red-100 { background-color: #492128; }
+.dark .text-blue-600, .dark .text-blue-700, .dark .text-blue-800, .dark .text-blue-900 { color: #f1a792; }
+.dark .text-green-600, .dark .text-green-700, .dark .text-green-800, .dark .text-green-900, .dark .text-green-950 { color: #86efac; }
+.dark .text-amber-700, .dark .text-amber-800, .dark .text-amber-900, .dark .text-amber-950, .dark .text-yellow-600, .dark .text-yellow-700, .dark .text-yellow-800, .dark .text-orange-700 { color: #fcd34d; }
+.dark .text-red-600, .dark .text-red-700, .dark .text-red-800, .dark .text-red-900, .dark .text-red-950 { color: #fda4af; }
+.dark .bg-blue-600, .dark .bg-blue-700 { color: #fff; }
+.dark .border-blue-100, .dark .border-blue-200 { border-color: #6e2a1b; }
+.dark .bg-purple-100, .dark .bg-purple-50 { background-color: #2a2826; }
+.dark .text-purple-600, .dark .text-purple-700, .dark .text-purple-800 { color: #f4f3f1; }
+.dark .border-purple-200 { border-color: #3a3734; }
+.dark .hover\:bg-amber-100:hover { background-color: #57431f; }
+.dark .divide-gray-100 > :not(:last-child), .dark .divide-gray-200 > :not(:last-child) { border-color: #3a3734; }
+
+/* In the base layer so components with their own focus ring (inputs, buttons) show only that ring. */
+@layer base {
+  :focus-visible { outline: 2px solid #c94b30; outline-offset: 3px; }
+  .dark :focus-visible { outline-color: #f1a792; }
+}
+input[type="checkbox"], input[type="radio"], progress { accent-color: var(--color-coral-600); }
+.dark input[type="checkbox"], .dark input[type="radio"], .dark progress { accent-color: var(--color-coral-400); }
+
+/* Dashboard bento tiles (src/portal/components/dashboard/tiles.tsx). The focal tile is charcoal in
+   light mode; on dark surfaces a deep coral keeps it the brightest accent of the grid. */
+.dark .tv-focal-tile { background: linear-gradient(150deg, #8c3320 0%, #5c2216 100%); color: #fff; }
+.dark .tv-focal-tile .tv-ring-value { stroke: #f7cbbe; }
+.dark .tv-bar-track { background-color: #2a2826; }
+.dark .bg-yellow-100 { background-color: #423318; }
+
+/* Work pages (tenants, backup, drift, audit): hover outlines, tag chip tints and the restore selection
+   ring stay warm and readable on dark surfaces. */
+.dark .hover\:border-gray-200:hover { border-color: #3a3734; }
+.dark .bg-orange-100 { background-color: #423318; }
+.dark .bg-pink-100 { background-color: #492128; }
+.dark .text-pink-700 { color: #fda4af; }
+.dark .border-green-200, .dark .border-yellow-200, .dark .border-orange-200, .dark .border-pink-200, .dark .border-red-200, .dark .border-amber-200 { border-color: #3a3734; }
+.dark .placeholder\:text-gray-400::placeholder { color: #76716b; }
+.dark input.bg-transparent { background-color: transparent; }
+
+/* OIB workflows: keyboard focus and scrollIntoView keep content above the sticky action bar (and the floating backup panel). */
+html:has([data-flow-shell]) {
+  scroll-padding-bottom: calc(var(--action-bar-height, 6rem) + 1rem + var(--floating-progress-offset, 0px));
+}

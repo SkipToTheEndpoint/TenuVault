@@ -1,0 +1,145 @@
+name: CI
+
+# Checks every pull request and push to main. Releases (nightly on every green push to main,
+# stable from a version tag) are built by release.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, test and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke test
+        timeout-minutes: 5
+        run: xvfb-run -a npm run smoke -- out/smoke
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-screenshots-linux
+          path: out/smoke
+          if-no-files-found: ignore
+
+  # Unsigned installers for pull requests, so contributors see that packaging still works.
+  package:
+    name: Package (${{ matrix.name }})
+    if: github.event_name != 'push'
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            target: --win
+            app: dist/win-unpacked/TenuVault.exe
+          - name: macOS
+            os: macos-latest
+            target: --mac
+            app: dist/mac-arm64/TenuVault.app/Contents/MacOS/TenuVault
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Manually requested installers can sign in to real licensed tenants. Pull requests
+      # (including forks without secrets) keep the inert placeholder key.
+      - name: Select licensing configuration
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RELEASE_PUBLIC_KEY: ${{ secrets.TENUVAULT_LICENSE_PUBLIC_KEY }}
+          RELEASE_PORTAL_URL: ${{ vars.TENUVAULT_LICENSE_PORTAL_URL }}
+        run: |
+          if [ -z "$RELEASE_PUBLIC_KEY" ] || [ -z "$RELEASE_PORTAL_URL" ]; then
+            echo "::error::Release and manual installer builds need the TENUVAULT_LICENSE_PUBLIC_KEY secret and TENUVAULT_LICENSE_PORTAL_URL variable"
+            exit 1
+          fi
+          {
+            echo "TENUVAULT_LICENSE_API_BASE=https://tenuvault.com"
+            echo "TENUVAULT_LICENSE_BUY_URL=https://tenuvault.com/desktop#pricing"
+            echo "TENUVAULT_LICENSE_PORTAL_URL=$RELEASE_PORTAL_URL"
+            delimiter="EOF_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+            echo "TENUVAULT_LICENSE_PUBLIC_KEY<<$delimiter"
+            printf '%s\n' "$RELEASE_PUBLIC_KEY"
+            echo "$delimiter"
+          } >> "$GITHUB_ENV"
+
+      - name: Build installers
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npx electron-vite build
+          npx electron-builder --config electron-builder.config.cjs ${{ matrix.target }} --publish never
+
+      - name: Verify packaged security fuses
+        run: node scripts/check-fuses.cjs "${{ matrix.app }}"
+
+      - name: Smoke test the packaged app
+        timeout-minutes: 5
+        shell: bash
+        env:
+          TENUVAULT_SMOKE_APP: ${{ github.workspace }}/${{ matrix.app }}
+        run: npm run smoke -- out/smoke
+
+      - name: Upload installers
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tenuvault-desktop-${{ matrix.name }}
+          path: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest*.yml
+          if-no-files-found: error
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-screenshots-${{ matrix.name }}
+          path: out/smoke
+          if-no-files-found: ignore

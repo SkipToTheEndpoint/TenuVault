@@ -1,0 +1,145 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { comparePolicies, parsePolicies, remediationPayload } from "../src/shared/frameworks/policies"
+import { frameworks, searchFrameworks } from "../src/shared/frameworks/catalog"
+import { collectGraph, handleFramework } from "../src/main/frameworks/service"
+
+const type = "#microsoft.graph.deviceManagementConfigurationChoiceSettingInstance"
+const policy = (value = "enabled") => ({ name: "Workstation baseline", platforms: "windows10", technologies: "mdm", description: "Approved profile",
+  id: "original", assignments: [{ target: { groupId: "never-copy" } }],
+  settings: [{ id: "0", settingInstance: { "@odata.type": type, settingDefinitionId: "password", choiceSettingValue: { value, children: [{
+    "@odata.type": "#microsoft.graph.deviceManagementConfigurationSimpleSettingInstance", settingDefinitionId: "minlength", simpleSettingValue: { "@odata.type": "#microsoft.graph.deviceManagementConfigurationIntegerSettingValue", value: 8 },
+  }] } } }] })
+const tenantId = "11111111-1111-1111-1111-111111111111"
+const appId = "22222222-2222-2222-2222-222222222222"
+const liveId = "33333333-3333-3333-3333-333333333333"
+afterEach(() => vi.unstubAllGlobals())
+
+describe("framework catalog and policy comparison", () => {
+  it("supports independent searchable frameworks, including NIST and STIG", () => {
+    expect(new Set(frameworks.map(f => f.id)).size).toBe(frameworks.length)
+    expect(searchFrameworks("nist").filter(f => f.publisher === "NIST")).toHaveLength(4)
+    expect(searchFrameworks("stig")[0]?.id).toBe("stig")
+    expect(searchFrameworks("nonexistent")).toHaveLength(0)
+  })
+  it("removes assignments and export metadata while retaining derived setting types", () => {
+    const parsed = parsePolicies(policy())[0]!
+    const payload = remediationPayload(parsed, parsed.settings, "approved revision 3")
+    expect(payload).not.toHaveProperty("assignments")
+    expect(payload).not.toHaveProperty("id")
+    expect(payload.settings[0]).not.toHaveProperty("id")
+    expect(payload.settings[0]?.settingInstance).toHaveProperty("@odata.type", type)
+    expect(JSON.stringify(payload)).not.toContain("never-copy")
+  })
+  it("rejects unsupported policy families and malformed exports", () => {
+    expect(() => parsePolicies({ displayName: "Compliance" })).toThrow("Settings Catalog")
+    expect(() => parsePolicies([])).toThrow("between 1 and 200")
+    const input = policy(); input.settings.push(input.settings[0]!)
+    expect(() => parsePolicies(input)).toThrow("duplicate root")
+  })
+  it("matches content regardless of names or export metadata", () => {
+    const expected = parsePolicies(policy())
+    const live = parsePolicies(policy())[0]!
+    const finding = comparePolicies(expected, [{ ...live, id: liveId, name: "Different name" }])[0]!
+    expect(finding.status).toBe("Present")
+    expect(finding.observed[0]?.policyName).toBe("Different name")
+  })
+  it("detects changes to nested child values and does not hide conflicting policies", () => {
+    const expected = parsePolicies(policy())
+    const changed = policy(); changed.settings[0]!.settingInstance.choiceSettingValue.children[0]!.simpleSettingValue.value = 10
+    expect(comparePolicies(expected, [{ ...parsePolicies(changed)[0]!, id: liveId }])[0]?.status).toBe("Different")
+    expect(comparePolicies(expected, [{ ...expected[0]!, id: liveId }, { ...parsePolicies(changed)[0]!, id: "another" }])[0]?.status).toBe("Different")
+  })
+  it("requires review of alternate pack values and identifies genuinely absent definitions", () => {
+    expect(comparePolicies(parsePolicies([policy("enabled"), policy("disabled")]), []).every(f => f.status === "Review")).toBe(true)
+    expect(comparePolicies(parsePolicies(policy()), [])[0]?.status).toBe("Missing")
+  })
+})
+
+describe("Graph reads and tenant-bound remediation", () => {
+  it.each(["cis-benchmarks", "cis-controls"])("blocks %s operations before network or workspace access", async frameworkId => {
+    const fetch = vi.fn()
+    vi.stubGlobal("fetch", fetch)
+    for (const action of ["workspace-load", "workspace-save", "workspace-delete", "workspace-delete-assessment", "assess", "create"]) {
+      await expect(handleFramework({ action, frameworkId, tenantId, appId, reference: "r1", policies: [policy()] }))
+        .rejects.toMatchObject({ status: 403, message: expect.stringContaining("coming soon") })
+    }
+    expect(fetch).not.toHaveBeenCalled()
+    expect(searchFrameworks("cis").map(f => f.id)).toEqual(["cis-benchmarks", "cis-controls"])
+  })
+  it("blocks a disabled assessment's creation even with a different or omitted framework ID", async () => {
+    const framework = frameworks.find(f => f.id === "cis-benchmarks")!
+    const disabledReason = framework.disabledReason
+    const fetch = vi.fn().mockImplementation(async (url: string) => url.includes("oauth2")
+      ? Response.json({ access_token: "test" }) : Response.json({ value: [] }))
+    vi.stubGlobal("fetch", fetch)
+    try {
+      // Simulate an assessment obtained before the contract gate was applied.
+      delete framework.disabledReason
+      const run = await handleFramework({ action: "assess", frameworkId: framework.id, tenantId, appId, reference: "r1", policies: [policy()] }) as { runId: string }
+      framework.disabledReason = disabledReason
+      fetch.mockClear()
+      for (const frameworkId of [undefined, "custom"]) {
+        await expect(handleFramework({ action: "create", ...(frameworkId ? { frameworkId } : {}), tenantId, appId, runId: run.runId, keys: ["0:0"], confirmUnassigned: true }))
+          .rejects.toMatchObject({ status: 403, message: disabledReason })
+      }
+      expect(fetch).not.toHaveBeenCalled()
+    } finally { framework.disabledReason = disabledReason }
+  })
+  it("follows empty pages with a continuation and retains beta", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ value: [], "@odata.nextLink": "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?$skiptoken=next" }))
+      .mockResolvedValueOnce(Response.json({ value: [{ id: liveId }] }))
+    vi.stubGlobal("fetch", fetch)
+    expect(await collectGraph("https://graph.microsoft.com/beta/deviceManagement/configurationPolicies", "test")).toEqual([{ id: liveId }])
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+  it("rejects continuation links that would send a token outside beta Graph", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json({ value: [], "@odata.nextLink": "https://example.com/leak" }))
+    vi.stubGlobal("fetch", fetch)
+    await expect(collectGraph("https://graph.microsoft.com/beta/deviceManagement/configurationPolicies", "test")).rejects.toThrow("continuation")
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it("fails the assessment when Graph denies access instead of inventing gaps", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ access_token: "test" })).mockResolvedValueOnce(Response.json({}, { status: 403 })))
+    await expect(handleFramework({ action: "assess", tenantId, appId, frameworkId: "custom", reference: "r1", policies: [policy()] })).rejects.toThrow("permissions")
+  })
+  it("creates only approved missing settings, rejects cross-tenant use and replay", async () => {
+    const writes: Record<string, unknown>[] = []
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("oauth2")) return Response.json({ access_token: "test" })
+      expect(url).toContain("/beta/")
+      if (init?.method === "POST") { writes.push(JSON.parse(String(init.body))); return Response.json({ id: liveId }) }
+      return Response.json({ value: [] })
+    }))
+    const assessment = await handleFramework({ action: "assess", tenantId, appId, frameworkId: "custom", reference: "r1", policies: [policy()] }) as { runId: string }
+    const create = { action: "create", tenantId, appId, runId: assessment.runId, keys: ["0:0"], confirmUnassigned: true }
+    await expect(handleFramework({ ...create, tenantId: liveId })).rejects.toThrow("expired")
+    await expect(handleFramework({ ...create, keys: ["99:0"] })).rejects.toThrow("Only missing")
+    expect(await handleFramework(create)).toMatchObject({ success: true })
+    expect(writes).toHaveLength(1)
+    expect(writes[0]).not.toHaveProperty("assignments")
+    await expect(handleFramework(create)).rejects.toThrow("already used")
+    expect(writes).toHaveLength(1)
+  })
+  it("refuses remediation after the live landscape changes", async () => {
+    let reads = 0
+    const fetch = vi.fn(async (url: string) => {
+      if (url.includes("oauth2")) return Response.json({ access_token: "test" })
+      if (url.endsWith("/settings")) return Response.json({ value: policy().settings })
+      return Response.json({ value: reads++ ? [{ ...policy(), id: liveId, settingCount: 1 }] : [] })
+    })
+    vi.stubGlobal("fetch", fetch)
+    const run = await handleFramework({ action: "assess", tenantId, appId, frameworkId: "custom", reference: "r1", policies: [policy()] }) as { runId: string }
+    await expect(handleFramework({ action: "create", tenantId, appId, runId: run.runId, keys: ["0:0"], confirmUnassigned: true })).rejects.toThrow("landscape changed")
+  })
+  it("reports write failure honestly and consumes the assessment after an uncertain result", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("oauth2")) return Response.json({ access_token: "test" })
+      if (init?.method === "POST") return Response.json({}, { status: 400 })
+      return Response.json({ value: [] })
+    }))
+    const run = await handleFramework({ action: "assess", tenantId, appId, frameworkId: "custom", reference: "r1", policies: [policy()] }) as { runId: string }
+    const create = { action: "create", tenantId, appId, runId: run.runId, keys: ["0:0"], confirmUnassigned: true }
+    expect(await handleFramework(create)).toMatchObject({ success: false, results: [{ error: expect.stringContaining("400") }] })
+    await expect(handleFramework(create)).rejects.toThrow("already used")
+  })
+})

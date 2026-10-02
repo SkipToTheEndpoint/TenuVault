@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <!-- Required by the V8 JIT in Electron under the hardened runtime. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <!-- Microsoft Graph, Azure and sign-in traffic. -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <!-- Loopback redirect listener for system browser sign-in. -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+  </dict>
+</plist>

@@ -1,0 +1,8 @@
+Test fixtures: two unmodified files from the UK NCSC Device Security Guidance
+Configuration Packs, Microsoft/Windows/MDM/Configurations/SettingsCatalog/, at commit
+681e07584d3f7a84549ff26bda83e4f1480703f6.
+Source: https://github.com/ukncsc/Device-Security-Guidance-Configuration-Packs
+Copyright 2025 Crown Copyright. Licensed under the Apache License, Version 2.0; see LICENSE
+in this folder. The files are byte-identical to the source (UTF-16LE with byte order mark)
+so their SHA-256 matches the hashes pinned in src/main/frameworks/ncsc.ts.
+No endorsement by the NCSC.

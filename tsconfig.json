@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "~/components/tenants/add-tenant-modal": ["./src/renderer/overrides/add-tenant-modal.tsx"],
+      "~/components/tenants/add-tenant-modal-redesigned": ["./src/renderer/overrides/add-tenant-modal.tsx"],
+      "~/lib/tenant-storage": ["./src/renderer/overrides/tenant-storage.ts"],
+      "~/*": ["./src/portal/*"],
+      "@desktop/*": ["./src/renderer/*"],
+      "next/navigation": ["./src/renderer/shims/next-navigation.ts"],
+      "next/link": ["./src/renderer/shims/next-link.tsx"],
+      "next/server": ["./src/main/api/next-server-shim.ts"],
+      "next/cache": ["./src/main/api/next-cache-shim.ts"],
+      "next/headers": ["./src/main/api/next-headers-shim.ts"]
+    }
+  },
+  "include": ["src", "scripts", "test", "electron.vite.config.ts", "vitest.config.ts"]
+}

@@ -1,0 +1,442 @@
+<!doctype html>
+<!--
+  Source of tenuvault-desktop-security-overview.pdf. Render with:
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --no-pdf-header-footer \
+    --print-to-pdf=docs/security-overview/tenuvault-desktop-security-overview.pdf \
+    docs/security-overview/security-overview.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TenuVault Desktop, security and architecture overview</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1f1d1b;
+    --body: #3d3a36;
+    --muted: #76716b;
+    --line: #e4e1dd;
+    --soft: #f6f4f1;
+    --accent: #c94b30;
+    --accent-bright: #e5674a;
+    --accent-soft: #fbece7;
+  }
+  html, body { background: #fff; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--body);
+    font-size: 8pt;
+    line-height: 1.36;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+  .content { padding: 0 14mm; }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(120deg, #1f1d1b 0%, #2e2a27 60%, #4a2c23 100%);
+    color: #f4f3f1;
+    padding: 7mm 14mm 5.5mm;
+  }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; }
+  .brand { display: flex; align-items: center; gap: 3mm; }
+  .brand img { width: 11mm; height: 11mm; }
+  .brand .name { font-size: 12pt; font-weight: 650; color: #fff; }
+  .brand .sub { font-size: 8.5pt; color: #c9c4bd; }
+  .meta { text-align: right; font-size: 8pt; color: #c9c4bd; line-height: 1.5; }
+  .hero h1 { font-size: 18pt; line-height: 1.2; color: #fff; margin-top: 4.5mm; letter-spacing: -0.2pt; }
+  .hero p { font-size: 9pt; color: #e4e0da; margin-top: 2mm; max-width: 176mm; line-height: 1.45; }
+  .strip {
+    background: linear-gradient(120deg, #1f1d1b 0%, #2e2a27 60%, #4a2c23 100%);
+    color: #c9c4bd;
+    padding: 3mm 14mm;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.8pt;
+  }
+  .strip b { color: #fff; }
+  .page2 ul li { font-size: 7.8pt; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin-top: 4mm; }
+  .card {
+    border: 1px solid var(--line);
+    border-top: 2.5px solid var(--accent-bright);
+    border-radius: 2mm;
+    padding: 3mm 3.5mm;
+  }
+  .card h3 { font-size: 9.2pt; color: var(--ink); margin-bottom: 1.2mm; }
+  .card p { font-size: 7.9pt; }
+
+  h2 {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.2pt;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 4mm 0 1.5mm;
+  }
+
+  .diagram {
+    border: 1px solid var(--line);
+    border-radius: 2mm;
+    background: var(--soft);
+    padding: 2.5mm;
+  }
+  .diagram svg { display: block; width: 100%; height: auto; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 7.2pt;
+    font-weight: 600;
+    letter-spacing: 0.8pt;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 1.2mm 2mm 1.2mm 0;
+    border-bottom: 1px solid var(--line);
+  }
+  td { padding: 1mm 2mm 1mm 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.perms td { padding: 0.6mm 2mm 0.6mm 0; }
+  td.purpose { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  code, .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 7.6pt; color: var(--ink); }
+  td.dest { white-space: nowrap; }
+  .tag {
+    display: inline-block;
+    font-size: 6.8pt;
+    font-weight: 600;
+    padding: 0.2mm 1.4mm;
+    border-radius: 1mm;
+    white-space: nowrap;
+  }
+  .tag.read { background: #eeece9; color: #55504a; }
+  .tag.write { background: var(--accent-soft); color: var(--accent); }
+  .note { font-size: 7.8pt; color: var(--muted); margin-top: 1.5mm; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  ul.facts { list-style: none; }
+  ul.facts li { padding: 0.6mm 0 0.6mm 4.5mm; position: relative; }
+  ul.facts li::before {
+    content: "";
+    position: absolute;
+    left: 0.5mm;
+    top: 1.9mm;
+    width: 1.5mm;
+    height: 1.6mm;
+    border-radius: 50%;
+    background: var(--accent-bright);
+  }
+  ul.checks { list-style: none; }
+  ul.checks li { padding: 0.6mm 0 0.6mm 5mm; position: relative; }
+  ul.checks li::before {
+    content: "";
+    position: absolute;
+    left: 0.6mm;
+    top: 1.3mm;
+    width: 1.3mm;
+    height: 2.4mm;
+    border-right: 1.5px solid var(--accent);
+    border-bottom: 1.5px solid var(--accent);
+    transform: rotate(40deg);
+  }
+  b, strong { color: var(--ink); font-weight: 650; }
+
+  .vendor {
+    background: var(--soft);
+    border-left: 3px solid var(--accent-bright);
+    border-radius: 1.5mm;
+    padding: 2mm 3.5mm;
+    margin-top: 3mm;
+    font-size: 7.6pt;
+  }
+  .footer {
+    position: absolute;
+    left: 14mm;
+    right: 14mm;
+    bottom: 6mm;
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid var(--line);
+    padding-top: 2mm;
+    font-size: 7.6pt;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<section class="page">
+  <header class="hero">
+    <div class="topbar">
+      <div class="brand">
+        <img src="../../build/icon.png" alt="">
+        <div>
+          <div class="name">TenuVault Desktop</div>
+          <div class="sub">Security and architecture overview</div>
+        </div>
+      </div>
+      <div class="meta">Describes version 0.1.0<br>Revision 1, 29 September 2026</div>
+    </div>
+    <h1>Runs locally. Your app registration. Your storage.</h1>
+    <p>TenuVault Desktop backs up, compares and restores Intune configuration from the admin's computer. It signs in
+      through an app registration you create in your own tenant and talks directly to Microsoft Graph and, if you choose,
+      your own Azure Storage account. Your Intune data, backups and Microsoft access tokens never pass through a vendor server.</p>
+  </header>
+
+  <div class="content">
+    <div class="cards">
+      <div class="card">
+        <h3>Your own app registration</h3>
+        <p>You create it in your tenant with the included script. No vendor app, no vendor client ID, no secret or
+          certificate, no consent to a third party. Delete it and the app stops working.</p>
+      </div>
+      <div class="card">
+        <h3>Delegated access, admin in control</h3>
+        <p>Every call runs as the signed-in admin and is limited by their Intune role. Changes to Intune happen only
+          when an admin starts a restore, a drift revert, a baseline deployment or its undo.</p>
+      </div>
+      <div class="card">
+        <h3>Backups stay with you</h3>
+        <p>Backups are encrypted on the computer with AES-256-GCM and kept on local disk or in your own Azure Storage
+          account. No vendor server stores or processes Intune data. No telemetry or crash reporting.</p>
+      </div>
+    </div>
+
+    <h2>Architecture</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 900 330" style="max-height:57mm" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#c94b30"/>
+          </marker>
+          <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#9a948d"/>
+          </marker>
+        </defs>
+
+        <!-- Admin computer -->
+        <rect x="10" y="10" width="400" height="310" rx="12" fill="#fbf1ed" stroke="#1f1d1b" stroke-width="1.6"/>
+        <text x="30" y="36" font-size="15" font-weight="700" fill="#1f1d1b">Admin computer (Windows or macOS)</text>
+
+        <rect x="30" y="52" width="360" height="150" rx="8" fill="#ffffff" stroke="#c9c4bd"/>
+        <text x="46" y="76" font-size="14.5" font-weight="700" fill="#1f1d1b">TenuVault Desktop</text>
+        <text x="46" y="99" font-size="12" fill="#55504a">Sign-in via system browser</text>
+        <text x="46" y="118" font-size="12" fill="#55504a">Tokens encrypted by the OS (DPAPI or Keychain)</text>
+        <text x="46" y="137" font-size="12" fill="#55504a">Backups encrypted before they are written</text>
+        <text x="46" y="156" font-size="12" fill="#55504a">Scheduled backups run as the signed-in admin</text>
+        <text x="46" y="175" font-size="12" fill="#55504a">Writes only when an admin starts a restore</text>
+        <text x="46" y="194" font-size="12" fill="#55504a">No telemetry or crash reporting</text>
+
+        <path d="M210 202 L210 232" stroke="#c94b30" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+        <rect x="30" y="236" width="360" height="66" rx="8" fill="#ffffff" stroke="#c9c4bd" stroke-dasharray="5 4"/>
+        <text x="46" y="260" font-size="13.5" font-weight="700" fill="#1f1d1b">Local backups and exports</text>
+        <text x="46" y="281" font-size="12" fill="#55504a">Encrypted backups in a folder the admin can change.</text>
+        <text x="46" y="297" font-size="12" fill="#55504a">Exports are saved where the admin chooses.</text>
+
+        <!-- Tenant -->
+        <rect x="490" y="10" width="400" height="245" rx="12" fill="#ffffff" stroke="#1f1d1b" stroke-width="1.6"/>
+        <text x="510" y="36" font-size="15" font-weight="700" fill="#1f1d1b">Your Microsoft 365 and Azure tenant</text>
+
+        <rect x="510" y="50" width="360" height="56" rx="8" fill="#fbf1ed" stroke="#e8c3b7"/>
+        <text x="526" y="73" font-size="13.5" font-weight="700" fill="#1f1d1b">Microsoft Entra ID</text>
+        <text x="526" y="93" font-size="12" fill="#55504a">Your app registration, MFA, Conditional Access</text>
+
+        <rect x="510" y="116" width="360" height="56" rx="8" fill="#fbf1ed" stroke="#e8c3b7"/>
+        <text x="526" y="139" font-size="13.5" font-weight="700" fill="#1f1d1b">Microsoft Graph (Intune)</text>
+        <text x="526" y="159" font-size="12" fill="#55504a">Reads for backup and drift, writes for restore</text>
+
+        <rect x="510" y="182" width="360" height="58" rx="8" fill="#ffffff" stroke="#e8c3b7" stroke-dasharray="5 4"/>
+        <text x="526" y="205" font-size="13.5" font-weight="700" fill="#1f1d1b">Your Azure Storage account (optional)</text>
+        <text x="526" y="225" font-size="12" fill="#55504a">Encrypted backups, audit log, tenant metadata</text>
+
+        <!-- Arrows to tenant -->
+        <path d="M391 78 L508 78" stroke="#c94b30" stroke-width="1.8" fill="none" marker-start="url(#arr)" marker-end="url(#arr)"/>
+        <text x="400" y="70" font-size="11.5" fill="#1f1d1b">1. Sign in</text>
+        <path d="M391 144 L508 144" stroke="#c94b30" stroke-width="1.8" fill="none" marker-start="url(#arr)" marker-end="url(#arr)"/>
+        <text x="400" y="136" font-size="11.5" fill="#1f1d1b">2. Read, restore</text>
+        <path d="M391 190 L508 210" stroke="#c94b30" stroke-width="1.8" fill="none" marker-start="url(#arr)" marker-end="url(#arr)"/>
+        <text x="412" y="216" font-size="11.5" fill="#1f1d1b">3. Store</text>
+
+        <!-- Vendor -->
+        <path d="M300 202 C 330 290, 420 298, 508 294" stroke="#9a948d" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#arrg)"/>
+        <rect x="510" y="268" width="380" height="52" rx="8" fill="#ffffff" stroke="#9a948d" stroke-dasharray="5 4"/>
+        <text x="526" y="290" font-size="12.5" font-weight="700" fill="#1f1d1b">4. License check and update check</text>
+        <text x="526" y="309" font-size="11.5" fill="#55504a">tenuvault.com and github.com. Metadata only, no Intune data.</text>
+      </svg>
+    </div>
+
+    <h2>Everything that leaves the computer (no Intune data goes to the vendor)</h2>
+    <table>
+      <thead>
+        <tr><th style="width:25mm">Purpose</th><th style="width:47mm">Destination</th><th>What is sent</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="purpose">Sign-in</td>
+          <td class="dest"><code>login.microsoftonline.com</code></td>
+          <td>Standard OAuth request to your tenant with your app registration</td>
+        </tr>
+        <tr>
+          <td class="purpose">Intune</td>
+          <td class="dest"><code>graph.microsoft.com</code></td>
+          <td>Requests with the admin's delegated token. Reads for backups and drift; writes only for restores, drift
+            reverts and baseline deployments an admin starts</td>
+        </tr>
+        <tr>
+          <td class="purpose">Storage picker</td>
+          <td class="dest"><code>management.azure.com</code></td>
+          <td>Optional. Lists the subscriptions and storage accounts the admin can see. Read only</td>
+        </tr>
+        <tr>
+          <td class="purpose">Azure backups</td>
+          <td class="dest"><code>&lt;account&gt;.blob.core.windows.net</code></td>
+          <td>Optional. Your own storage account: backup content (encrypted before upload) and audit log entries.
+            Not used when backups are stored locally</td>
+        </tr>
+        <tr>
+          <td class="purpose">License check</td>
+          <td class="dest"><code>tenuvault.com</code></td>
+          <td>License key (if any), tenant ID, random install ID, OS, app version and, when signed in, your client ID and a
+            short-lived Microsoft ID token. The service reads only the tenant and client ID from the token; name and UPN
+            are not stored. Runs at start, every 6 hours, on first use of a tenant and on license changes</td>
+        </tr>
+        <tr>
+          <td class="purpose">Updates</td>
+          <td class="dest"><code>github.com</code>, <code>*.githubusercontent.com</code></td>
+          <td>Version check and signed installer download. Can be turned off in Settings or by policy</td>
+        </tr>
+        <tr>
+          <td class="purpose">Baselines</td>
+          <td class="dest"><code>api.github.com</code>, <code>raw.githubusercontent.com</code></td>
+          <td>Optional. Downloads the public OpenIntuneBaseline repository for the OpenIntuneBaseline section. Nothing
+            about your tenant is sent</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">The service also sees the requesting IP address. Sign-in through the browser contacts Microsoft
+      services directly, outside TenuVault's control.</p>
+  </div>
+
+  <div class="footer"><span>TenuVault Desktop, security and architecture overview</span><span>tenuvault.com &nbsp;|&nbsp; Page 1 of 2</span></div>
+</section>
+
+<!-- PAGE 2 -->
+<section class="page page2">
+  <header class="strip">
+    <span><b>TenuVault Desktop</b> &nbsp;Security and architecture overview</span>
+    <span>Describes version 0.1.0 &nbsp;|&nbsp; Revision 1, 29 September 2026</span>
+  </header>
+
+  <div class="content">
+    <h2>Permissions (delegated only, granted by your admin consent)</h2>
+    <table class="perms">
+      <thead>
+        <tr><th style="width:74mm">Permission</th><th style="width:20mm">Access</th><th>Used for</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>User.Read</code></td><td><span class="tag read">Read</span></td><td>Sign-in</td></tr>
+        <tr><td><code>Organization.Read.All</code></td><td><span class="tag read">Read</span></td><td>Tenant name and domains</td></tr>
+        <tr><td><code>DeviceManagementConfiguration.ReadWrite.All</code></td><td><span class="tag write">Read, write</span></td><td>Configuration, compliance and endpoint security policies</td></tr>
+        <tr><td><code>DeviceManagementApps.ReadWrite.All</code></td><td><span class="tag write">Read, write</span></td><td>Apps, app configuration and app protection policies</td></tr>
+        <tr><td><code>DeviceManagementServiceConfig.ReadWrite.All</code></td><td><span class="tag write">Read, write</span></td><td>Enrollment, Autopilot, terms and conditions, branding</td></tr>
+        <tr><td><code>DeviceManagementScripts.ReadWrite.All</code></td><td><span class="tag write">Read, write</span></td><td>Scripts and remediations</td></tr>
+        <tr><td><code>DeviceManagementRBAC.ReadWrite.All</code></td><td><span class="tag write">Read, write</span></td><td>Intune roles, role assignments, scope tags, multi admin approval</td></tr>
+        <tr><td><code>DeviceManagementManagedDevices.Read.All</code></td><td><span class="tag read">Read</span></td><td>Device counts and compliance rate, device categories, clean-up rules. Device records are not stored</td></tr>
+        <tr><td><code>Policy.Read.All</code></td><td><span class="tag read">Read</span></td><td>Requested by the setup script, not used by this version</td></tr>
+        <tr><td><code>Azure Service Management: user_impersonation</code></td><td><span class="tag read">Read</span></td><td>Storage account picker (GET requests only)</td></tr>
+        <tr><td><code>Azure Storage: user_impersonation</code></td><td><span class="tag write">Read, write</span></td><td>Backups and audit log in your storage account</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Plus openid, profile and offline_access. No application permissions, no client secret, no certificate.
+      Consent is tenant-wide and tokens carry all consented scopes. Intune calls use Graph beta; the tenant overview also
+      uses v1.0. Write scopes exist for restore; Microsoft enforces the admin's Intune role and scope tags on every call.</p>
+
+    <div class="cols">
+      <div>
+        <h2>Data on the computer and at rest</h2>
+        <ul class="facts">
+          <li><b>Tokens, settings and backup keys</b> are encrypted with DPAPI or a macOS Keychain key, bound to the OS
+            user. The app will not start without OS encryption.</li>
+          <li><b>Local backups</b> use AES-256-GCM per file, with keyed-hash file names so policy names are not visible
+            on disk. Default folder: Documents/TenuVault Backups.</li>
+          <li><b>Azure backups</b> are encrypted on the computer (AES-256-GCM) before upload. Blob names (policy display
+            names), audit log and tenant metadata rely on Azure's encryption at rest.</li>
+          <li><b>Recovery key.</b> Azure uploads are blocked until the admin saves it. Keep it in a password manager; without
+            it, backups cannot be read on another computer or after a reinstall.</li>
+          <li><b>Exports</b> (backup ZIP, reports) are unencrypted, saved where the admin chooses. Backups can hold secret
+            values such as OMA-URI settings, so treat exports and the recovery key as sensitive.</li>
+          <li><b>Retention.</b> Backups older than the retention setting (default 30 days) and audit entries older than
+            90 days are deleted.</li>
+        </ul>
+
+        <h2>Changes to your tenant</h2>
+        <ul class="facts">
+          <li><b>Admin-started only.</b> Scheduled jobs read Intune and write to backup storage, never to Intune.
+            Restores, reverts and deployments need an admin to start them.</li>
+          <li><b>Preview and confirm.</b> The live tenant is compared with the backup, and overwriting requires an
+            explicit confirmation. The default restore creates copies, with assignments off.</li>
+          <li><b>Cross-tenant copies</b> are always created unassigned; referenced apps need reviewed mappings.</li>
+          <li><b>Write journal.</b> Restore, revert and OpenIntuneBaseline writes are journaled locally; an unconfirmed write
+            blocks retries until reconciled.</li>
+          <li><b>Audit trail</b> under the admin's name, in your Azure storage or, for local backups, on the computer.
+            Intune also logs every change.</li>
+        </ul>
+        <div class="vendor">
+      <b>Vendor.</b> Ugurlabs UG (haftungsbeschränkt), Düsseldorf, Germany. Licensing at tenuvault.com; keys and payments
+      by Polar, sharing records in Supabase. DPA available on request. Security contact: security@ugurlabs.com
+        </div>
+      </div>
+
+      <div>
+        <h2>Background backups</h2>
+        <ul class="facts">
+          <li>TenuVault runs backups itself, as the signed-in admin, while it runs in the tray. An optional per-user Task
+            Scheduler task or LaunchAgent starts it at logon. No service account, no stored password, no app-only identity.</li>
+          <li>If the session expires, the backup stops and asks the admin to sign in again.</li>
+        </ul>
+
+        <h2>Application hardening</h2>
+        <ul class="facts">
+          <li>Released Windows builds are signed with Azure Trusted Signing; macOS builds are signed and notarized.</li>
+          <li>Electron sandbox, context isolation, no Node.js in the interface, a Content Security Policy limiting scripts
+            and connections to the app, and navigation to other sites blocked.</li>
+          <li>Electron fuses disable run-as-node, NODE_OPTIONS and inspector flags and enforce an integrity-checked app
+            archive, verified in CI.</li>
+          <li>The license service issues an Ed25519-signed entitlement, valid 14 days and verified offline.</li>
+        </ul>
+
+        <h2>Your controls</h2>
+        <ul class="checks">
+          <li><b>Assignment required.</b> The setup script can limit sign-in to one admin group. This also decides who can
+            use a license shared with the tenant.</li>
+          <li><b>Conditional Access.</b> Require MFA and a compliant device for this app. Sign-ins appear in your Entra logs.</li>
+          <li><b>Least privilege.</b> Intune roles and scope tags limit what TenuVault sees and changes. With a read-only
+            role, Microsoft rejects restores.</li>
+          <li><b>Storage access.</b> Grant Storage Blob Data Contributor on the backup account only, or keep backups local.</li>
+          <li><b>Update control.</b> Updates download automatically and install on quit. Turn this off in Settings or
+            with the <span class="mono">DisableAutoUpdate</span> policy (HKLM or HKCU <span class="mono">\SOFTWARE\Policies\TenuVault</span>,
+            or managed preference <span class="mono">com.tenuvault.desktop</span>).</li>
+          <li><b>Verify it yourself.</b> Intune audit logs show every change. With Graph activity logs enabled, filter by
+            your client ID to see every call.</li>
+          <li><b>Revoke anytime.</b> Disable or delete the app registration.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer"><span>TenuVault Desktop, security and architecture overview</span><span>tenuvault.com &nbsp;|&nbsp; Page 2 of 2</span></div>
+</section>
+
+</body>
+</html>
